@@ -23,17 +23,18 @@ if not os.path.exists(dataDirectory):
 #---------------------------------------------------------------------------------------------------------------
 
 def d(input):
-    if(DEBUG = True):
+    if(DEBUG == True):
         print(input)
 
 def newTestSeries():    #Sets up a new directory for a test series. Creates a table through newTable(dataList). Returns a directory
+    os.chdir(dataDirectory)
     seriesName = input("Setting up a new test series. What species is being studied? ")
     seriesDataRepo = seriesName.title() + " Data Repository"
 
     seriesPath = os.path.join(os.getcwd(), seriesDataRepo)
     if not os.path.exists(seriesPath):
         os.makedirs(seriesPath)  
-        os.chdir(seriesPath)  
+    os.chdir(seriesPath)  
 
     dataList = []
     print("Setting up the data formats. Please enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
@@ -54,9 +55,8 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
         print(element, end ="\t")
     print("\n\n")
 
-    newTable(dataList)
-
-    os.chdir(programDirectory)
+    dataFileName = newFile(seriesName)
+    newTable(dataList, dataFileName)
     return seriesPath
         
 def continueTestSeries():   #Greetings. Lists file directories, allows selection. Returns a directory.
@@ -77,26 +77,26 @@ def continueTestSeries():   #Greetings. Lists file directories, allows selection
         if(userChoice.isdigit() == True):
             selected = int(userChoice)
 
-            if 1 <= selected < len(fileList):
+            if 1 <= selected <= len(fileList):
                 testSeries = fileList[selected-1] #-1 since lists start at index = 0
                 testSeriesPath = os.path.join(dataDirectory, testSeries)
                 print(f"Selected file: {testSeries}")
                 break
             else:
-                userChoice = input(f"You entered {userChoice}. That's not a valid choice! Please enter an appropriate integer value: \n")
+                userChoice = input(f"You entered {userChoice}. That's out of bounds! Please enter an appropriate integer value: \n")
         else:
-            userChoice = input(f"You entered {userChoice}. That's not a valid choice! Please enter an appropriate integer value: \n")
+            userChoice = input(f"You entered {userChoice}. That's not an integer! Please enter an appropriate integer value: \n")
     
     os.chdir(testSeriesPath)
     d("Chosen working directory is: " + testSeriesPath)
     return(testSeriesPath)
 
-def newFile(seriesName):    #sets up a new .txt file for a series, date-marked. Increments a counter if a file already exists for today
+def newFile(seriesName):    #returns a new .txt filename for a series, date-marked. Increments a counter if a file already exists for today
     now = dt.datetime.now()
     day = now.day
-    month = now.month
+    month = now.strftime("%B")
     year = now.year
-    entryDate = f"{day}-{month}-{year}"
+    entryDate = f"{day} {month}-{year}"
 
     newDataFileName = f"{entryDate} - {seriesName} data"
 
@@ -107,47 +107,58 @@ def newFile(seriesName):    #sets up a new .txt file for a series, date-marked. 
             newDataFileName[:-1] + str(iteration)
         else:
             newDataFileName = newDataFileName + " - 1"
+    
+    return(newDataFileName+".txt")
 
-def newTable(dataList):
+def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
     dataTable = pd.DataFrame(columns=dataList)
 
-
-
+    with open(newDataFileName+".txt", "w") as file:
+        # file.write(dataTable.to_string(index=False))
+        for element in dataList:
+            file.write(f"{element} \t")
     return dataTable
+
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               MAIN FUNCTION
 #
 #---------------------------------------------------------------------------------------------------------------
 
-
-choiceList = ["Set up a new test series", "Continue a test series"]
-
 count = 1
-print("Welcome!\nWhat would you like to do? Enter the numeric value to select an option.\n\n")
+choiceList = ["Set up a new test series", "Continue a test series"] ###################################################    STARTUP USER CHOICES
+
+print("Welcome!\nWhat would you like to do? Enter a numeric value to select an option.\n\n")
 
 for element in choiceList:
     print(f"{count} - \t{element}")
-
+    count += 1
 userChoice = input("\n")
+
 while(True):
     if (userChoice.isdigit() == True):
         choice = int(userChoice)
         if choice == 1:
-            x = newTestSeries() #returns the directory of the new test series
+            testDir = newTestSeries() #returns the directory of the new test series
             break
         elif choice == 2:
-            continueTestSeries()    #returns the directory of the test to be continued
+            testDir = continueTestSeries()    #returns the directory of the test to be continued
             break
     else:
         userChoice = input("That's not a valid choice. Please enter another value.\n")
 
+os.chdir(testDir)
+# dataTable = pd.DataFrame(columns=dataList)
+activeTestSeries = os.path.basename(os.getcwd())
+activeFileName = newFile(activeTestSeries)
 
 
-dataTable = pd.DataFrame(columns=dataList)
-
-
-with open(newDataFileName+".txt", "w") as file:
-    file.write(dataTable.to_string(index=False))    
+with open(activeFileName, "w") as file:
+    while(True):
+        data = input("you can enter data here: ")
+        file.write(data + "\n")  
+        print("data added.\n")
+        if data == "":
+            break
 
 x= input("Press enter to end the program.\n")
