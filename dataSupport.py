@@ -55,17 +55,17 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
         print(element, end ="\t")
     print("\n\n")
 
-    dataFileName = newFile(seriesName)
+    dataFileName = newFileNameCheck(seriesName)
     newTable(dataList, dataFileName)
     return seriesPath
         
-def continueTestSeries():   #Greetings. Lists file directories, allows selection. Returns a directory.
+def continueTestSeries():   #Lists file directories, allows selection. Returns a directory.
     os.chdir(dataDirectory)
     print("Select which test series you'd like to continue. \nThe current test series are:\n\n")
     fileList = os.listdir()
     count = 1
 
-    for fileName in fileList:
+    for fileName in fileList:   #outputs available selection options from among list: "fileList"
         delimiter = " Data Repository"
         part = fileName.split(delimiter, 1)[0]
         print(f"{count} - \t{part}")
@@ -73,7 +73,9 @@ def continueTestSeries():   #Greetings. Lists file directories, allows selection
 
     userChoice = input("Enter the number representing the test series that you'd like to continue:\n")
 
-    while(True):
+#### SUGGESTION: make this following bit an independent function; f("data format parameter") ? e.g. f("path to Break statement")
+
+    while(True): #input-checking
         if(userChoice.isdigit() == True):
             selected = int(userChoice)
 
@@ -91,7 +93,9 @@ def continueTestSeries():   #Greetings. Lists file directories, allows selection
     d("Chosen working directory is: " + testSeriesPath)
     return(testSeriesPath)
 
-def newFile(seriesName):    #returns a new .txt filename for a series, date-marked. Increments a counter if a file already exists for today
+#### End SUGGESTION
+
+def newFileNameCheck(seriesName):    #returns a new .txt filename for a series, date-marked. Increments a counter if a file already exists for today
     now = dt.datetime.now()
     day = now.day
     month = now.strftime("%B")
@@ -113,6 +117,8 @@ def newFile(seriesName):    #returns a new .txt filename for a series, date-mark
 def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
     dataTable = pd.DataFrame(columns=dataList)
 
+
+    #This is where I need to fix. It opens its own writing file: this should not be its responsibility
     with open(newDataFileName+".txt", "w") as file:
         # file.write(dataTable.to_string(index=False))
         for element in dataList:
@@ -150,7 +156,8 @@ while(True):
 os.chdir(testDir)
 # dataTable = pd.DataFrame(columns=dataList)
 activeTestSeries = os.path.basename(os.getcwd())
-activeFileName = newFile(activeTestSeries)
+activeFileName = newFileNameCheck(activeTestSeries)
+
 
 
 with open(activeFileName, "w") as file:
