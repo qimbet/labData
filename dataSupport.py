@@ -37,23 +37,42 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
     os.chdir(seriesPath)  
 
     dataList = []
-    print("Setting up the data formats. Please enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
-    newData = input("Enter a name for a data category and press enter: ")
-    while (True):
-        userChoice = input(f"{newData.title()} added! Enter 'edit' if you'd like to edit this entry, or enter your next data type. \nWhen you're done entering data types, leave the input blank and press 'Enter'.\n\nNew datatype: ")
-        if (userChoice.lower() == "edit"):
-            newData = input("Please enter the corrected data type name: ")
-            continue
-        dataList.append(newData.title()) 
-        newData = userChoice
-        if (newData == ""):
-            print("-")
+    while(True):
+        print("Setting up the data formats. Please enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
+        newData = input("Enter a name for a data category and press enter: ")
+        while (True):
+            userChoice = input(f"{newData.title()} added! Enter 'edit' if you'd like to edit this entry, or enter your next data type. \nWhen you're done entering data types, leave the input blank and press 'Enter'.\n\nNew datatype: ")
+            if (userChoice.lower() == "edit"):
+                newData = input("Please enter the corrected data type name: ")
+                continue
+            dataList.append(newData.title()) 
+            newData = userChoice
+            if (newData == ""):
+                print("-")
+                break
+        print("Current data list is: \n")
+        for element in dataList:
+            print(element, end ="\t")
+        print("\n\n")
+        userChoice = input("Proceed? If you woud like to edit the list, enter 'edit'. Otherwise, press enter on a blank field to continue.\n")
+        if userChoice == "":
             break
+        elif userChoice.lower() == "edit":
+            print("What would you like to edit?")
+            choices = ["Remove data type", "Edit existing data type"]
+            listString(choices)
+            editChoice = userInputInteger(len(choices)) #Begin indexing at 1 for non-tech user intuitivity
+            if editChoice == 1:
+                print("Editing datatype: \nWhich datatype would you like to revise?\n")
+                listString(dataList)
+                dataListEdit = userInputInteger(len(dataList))-1
+                while(True):
+                    updatedValue = input("Enter your corrected datatype:\n")
+                    confirm = input(f"You entered: \'{updatedValue}\'. Press 'enter on a blank field to confirm, or enter your value again.")
+                    if confirm == "":
+                        dataList[dataListEdit] = updatedValue
+                        break
 
-    print("Current data list is: \n")
-    for element in dataList:
-        print(element, end ="\t")
-    print("\n\n")
 
     dataFileName = newFileNameCheck(seriesName)
     newTable(dataList, dataFileName)
@@ -125,6 +144,25 @@ def newTable(dataList, newDataFileName):     #Initializes a text file with a fir
             file.write(f"{element} \t")
     return dataTable
 
+def userInputInteger(numRange): #Prompts the user for an integer input within an allowable range (numRange). UI. Returns int
+    editChoice = input("Enter the numeric value corresponding to your selection: ")
+    while(True):
+        if(editChoice.isdigit() == True):
+            if (int(editChoice) > 0 & int(editChoice) <= numRange):
+                return int(editChoice)
+            else:
+                editChoice = input("Your entered value is out of range! Please try again. \n")
+                continue
+        else:
+            editChoice = input("Your entered value is not an integer! Please try again. \n")
+            continue
+
+def listString(list):   #UI. Lists options in a list with an associated index. Pairs with userInputInteger(len(list))
+    num = 1
+    for element in list:
+        print(f"{num} - {element}\n")
+        num += 1
+    return
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               MAIN FUNCTION
