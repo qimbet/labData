@@ -10,7 +10,7 @@ import os
 import datetime as dt
 import pandas as pd
 
-DEBUG = False
+DEBUG = True
 
 programDirectory = os.path.dirname(os.path.realpath(__file__))  
 dataDirectory = os.path.join(programDirectory, "Data")
@@ -30,7 +30,7 @@ def d(input):
 
 def newTestSeries():    #Sets up a new directory for a test series. Creates a table through newTable(dataList). Returns a directory
     os.chdir(dataDirectory)
-    seriesName = input("Setting up a new test series. What species is being studied? ")
+    seriesName = input("Setting up a new test series. What species is being studied? \n\n")
     seriesName = seriesName.title()
     seriesDataRepo = seriesName + " Data Repository"
 
@@ -40,12 +40,9 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
     os.chdir(seriesPath)  
 
     dataList = []
-    print(f"Setting up the data formats for {seriesName}. \nPlease enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
+    print(f"Setting up the data formats for: {seriesName}. \nPlease enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
     newData = input("Enter a name for a data category and press enter: ")
     newData = newData.title()
-
-    # if (len(dataList) == 0):
-    #     dataList.append(newData)
 
     while (True):
         userEntry = input(f"{newData} added! \nEnter 'edit' if you'd like to edit this entry, or enter your next data type. \nWhen you're done entering data types, leave the input blank and press 'Enter'.\n\nNew datatype: ")
@@ -65,26 +62,42 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
     printListTab(dataList)
 
     userChoice = input("Proceed? If you woud like to edit the list, enter 'edit'. Otherwise, press enter on a blank field to continue.\n")
-    if userChoice.lower() == "edit":
-        print("What would you like to edit?\n")
-        choices = ["Remove data type", "Edit existing data type"]
-        printChoose(choices) #Begin indexing at 1 for non-tech user intuitivity
-        if editChoice == 1:
-            print("Removing datatype: \nWhich datatype would you like to remove?\n")
-            dataListRemove = printChoose(dataList)
-            del dataList[dataListRemove]
-            print(f"\nData list updated.\n Current data list is:\n")
+    while(True):
+        if userChoice.lower() == "edit":
+            print("What would you like to edit?\n")
+            print("Current data types are: \n")
             printListTab(dataList)
+            print("You may enter a task-associated numerical value, or press enter on a blank field to continue.\n")
+            choices = ["Remove data type", "Edit existing data type", "Add data type", "Continue with program"]
+            editChoice = printChoose(choices)
+            
+            if editChoice == 0:
+                print("Removing datatype: \nWhich datatype would you like to remove?\n")
+                dataListRemove = printChoose(dataList)
+                del dataList[dataListRemove]
+                print(f"\nData list updated.\n Current data list is:\n")
+                printListTab(dataList)
 
-        elif editChoice == 2:
-            print("Editing datatype. Which datatype would you like to revise?\n")
-            dataListEdit = printChoose(dataList)
-            while(True):
+            elif editChoice == 1:
+                print("Editing datatype. Which datatype would you like to revise?\n")
+                dataListEdit = printChoose(dataList)
                 updatedValue = input("Enter your corrected datatype:\n")
-                confirm = input(f"You entered: \'{updatedValue}\'. Press 'enter on a blank field to confirm, or enter your value again.")
-                if confirm == "":
-                    dataList[dataListEdit] = updatedValue
-                    break
+                dataList[dataListEdit] = updatedValue.title()
+                    
+            elif editChoice == 2:
+                newValue = input("What parameters would you like to add?\n")
+                newValue = newValue.title()
+                print(f"{newValue} added!")
+                dataList.append(newValue)
+
+            elif editChoice == "":
+                break              
+
+
+        elif userChoice == "":
+            break
+        else: 
+            userChoice = input("You did not enter a valid value!\n Press 'enter' on a blank field to continue to data input, or enter 'edit' to modify the test series parameters.\n")
 
     dataFileName = newFileNameCheck(seriesName)
     newTable(dataList, dataFileName)
@@ -124,8 +137,6 @@ def continueTestSeries():   #Lists file directories, allows selection. Returns a
     d("Chosen working directory is: " + testSeriesPath)
     return(testSeriesPath)
 
-#### End SUGGESTION
-
 def newFileNameCheck(seriesName):    #returns a new .txt filename for a series, date-marked. Increments a counter if a file already exists for today
     now = dt.datetime.now()
     day = now.day
@@ -161,11 +172,14 @@ def userInputInteger(inputList): #Prompts the user for an integer input within a
     editChoice = input("Enter the numeric value corresponding to your selection: ")
     while(True):
         if(editChoice.isdigit() == True):
-            if (int(editChoice) > 0 & int(editChoice) <= numRange):
-                return (int(editChoice) - 1)
+            editChoice = int(editChoice)
+            if (editChoice > 0 & editChoice <= numRange):
+                return (editChoice - 1)
             else:
                 editChoice = input("Your entered value is out of range! Please try again. \n")
                 continue
+        elif (editChoice == ""):
+            return ""
         else:
             editChoice = input("Your entered value is not an integer! Please try again. \n")
             continue
@@ -173,13 +187,14 @@ def userInputInteger(inputList): #Prompts the user for an integer input within a
 def listString(list):   #UI. Lists options in a list with an associated index. Pairs with userInputInteger(list)
     num = 1
     for element in list:
-        print(f"{num} - {element}\n")
+        print(f"{num} - {element}")
         num += 1
+    print("\n")
     return
 
 def printChoose(inputList):
     listString(inputList)
-    choice = userInputInteger(inputList) -1 
+    choice = userInputInteger(inputList)
     return choice
 
 def printListTab(dataList):
@@ -193,22 +208,15 @@ def printListTab(dataList):
 #
 #---------------------------------------------------------------------------------------------------------------
 
-count = 1
-choiceList = ["Set up a new test series", "Continue a test series"] ###################################################    STARTUP USER CHOICES
+programRunList = ["Start a new test series", "Continue an existing test series"]
 
 print("Welcome!\nWhat would you like to do? Enter a numeric value to select an option.\n\n")
 
-for element in choiceList:
-    print(f"{count} - \t{element}")
-    count += 1
-userChoice = input("\n")
+runMode = printChoose(programRunList)
 
-programRunList = ["Start a new test series", "Continue an existing test series"]
-printChoose(programRunList)
-
-if runMode == 1:
+if runMode == 0:    #programRumList entry index
     testDir = newTestSeries() #returns the directory of the new test series
-elif runMode == 2:
+elif runMode == 1:
     testDir = continueTestSeries()    #returns the directory of the test to be continued
 
 
