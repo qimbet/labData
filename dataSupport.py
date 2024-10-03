@@ -10,6 +10,9 @@ import sqlite3 as sql
 
 DEBUG = True
 
+conn = sql.connect("labData.db")
+cursor = conn.cursor()
+
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               FUNCTION DEFINITIONS
@@ -35,7 +38,7 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
     os.chdir(seriesPath)  
 
     dataList = []
-    print(f"Setting up the data formats for: {seriesName}. \nPlease enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
+    print(f"Setting up the data formats for: {seriesName}. \nPlease enter the names of each data type that you're collecting (e.g. 'colour', 'weight', etc.)\n\nDon't worry about units yet, we'll set those up later.\n")
     newData = input("Enter a name for a data category and press enter: ")
     newData = newData.title()
 
@@ -92,7 +95,7 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
         else: 
             userChoice = input("You did not enter a valid value!\n Press 'enter' on a blank field to continue to data input, or enter 'edit' to modify the test series parameters.\n")
 
-    return seriesPath
+    return seriesPath, dataList
         
 def selectTestSeries():   #Lists file directories, allows selection. Returns a directory.
     os.chdir(dataDirectory)
@@ -136,6 +139,37 @@ def newFileNameCheck(seriesName):    #returns a new .txt filename for a series, 
             newDataFileName = newDataFileName + " - 1"
     
     return(newDataFileName+".txt")
+
+def setUnits(dataList):
+    datatypeList = []
+    for element in dataList:
+        type = input(f"Enter the measurement units (e.g. mm, kg, # of) for: \n{element.upper()}\nIf the data type is qualitative (e.g. colour), press enter on a blank field.\n\n")
+        if type == "":
+            datatypeList.append("")
+        else:
+            datatypeList.append(type)
+    return datatypeList
+
+def setupDatabase(conn, cursor, databaseName, inputList, datatypeList):
+
+    sqlString = ""
+    delimiter = ", "
+    
+    count = 0
+    for element in datatypeList: 
+        blankString = ""
+        if element == "":
+            type = "TEXT"          
+        else: 
+            type = "NUMERIC"
+        column = blankString.join()############################################3 WHAT SHOULD BE JOINED??
+        sqlString.append(column)
+
+    cursor.execute(f"""CREATE TABLE if NOT EXISTS {databaseName}(
+            key INT, 
+            convict BLOB, 
+            PRIMARY KEY(key))""")
+    conn.commit()
 
 def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
     dataTable = pd.DataFrame(columns=dataList)
@@ -197,9 +231,10 @@ if True: #Directory setup
 
     directoryPathList = []
     for element in directoryList:
-        dir = directoryPathList.append(os.path.join(programDirectory, element))
+        dir = os.path.join(programDirectory, element)
+        directoryPathList.append(dir)
         if not os.path.exists(dir):
-            print(f"\nNo {element} directory found!\n...\nSetting up {element} directory in {programDirectory}\n\n")
+            print(f"\nNo {element} directory found!\nSetting up {element} directory in {programDirectory}\n")
             os.makedirs(dir)  
     
     dataDirectory = directoryPathList[0]
@@ -207,48 +242,59 @@ if True: #Directory setup
 
 os.chdir(dataDirectory) 
 
-programRunList = ["Start a new test series", "Continue an existing test series", "Export full data series", "Analyze Data"]
+programRunList = ["Start a new test series", "Continue an existing test series", "Export full data series", "Analyze Data", "Source Code"]
 exportOptions = ["Export SQL Database", "Export .csv", "Export .pdf"]
 analyzeOptions = ["Graph data", "Statistical trends"]
 
 
 
-print("Data support code written by Jacob Mattie, 2024\njacob@qimbet.com\ngithub.com/qimbet\nWelcome!\nI'm thrilled to help you out with your data management!\nWhat would you like to do? Enter a numeric value to select an option.\n\n")
+while(True):
+    print("What would you like to do? Enter a numeric value to select an option, or enter a blank field to quit the program.\n\n")
+    runMode = printChoose(programRunList)
 
-runMode = printChoose(programRunList)
+    if runMode == "":
+        exit()
+    elif runMode == 0:    #New Test Series
+        parameters = newTestSeries() #returns tuple: (seriesPath, dataList)
+        testDir = parameters[0]
+        dataTypes = parameters[1]
 
-if runMode == 0:    #programRumList entry index
-    testDir = newTestSeries() #returns seriesPath
-    
-    seriesName = os.path.split(testDir)
+        unitsList = setUnits(dataTypes) #empty string for qualitative data, numeric data contains a unit type
 
-    delimiter = " Data Repository"
-    seriesName = seriesName[1].split(delimiter, 1)[0]  #returns, e.g. "Horse" from "Horse Data Repository"        
+        seriesName = os.path.split(testDir)
+
+        delimiter = " Data Repository"
+        seriesName = seriesName[1].split(delimiter, 1)[0]  #returns, e.g. "Horse" from "Horse Data Repository"        
+
+        setupDatabase(conn, cursor, seriesName, unitsList)
+
+        # dataFileName = newFileNameCheck(seriesName)
+        # newTable(dataList, dataFileName)
+    elif runMode == 1: #Continue test series
+        testDir = selectTestSeries()    #returns the directory of the test to be continued
+        d("running established test series as selected")
+    elif runMode == 2: #Export Data
+        print("not yet")
+    elif runMode == 3: #Analyze Data
+        print("not yet")
+    elif runMode == 4: #Source code, credits
+        print("Code developed by Jacob Mattie, 2024.\nj_mattie@live.ca\n\nSouce code available at: \n\nhttps://github.com/qimbet/labData\n\n")
+        x = input("Press enter to continue")
+        continue
+        
+    os.chdir(testDir)
 
 
-    # dataFileName = newFileNameCheck(seriesName)
-    # newTable(dataList, dataFileName)
-elif runMode == 1:
-    testDir = selectTestSeries()    #returns the directory of the test to be continued
-    d("running established test series as selected")
-elif runMode == 2:
-    print("not yet")
-elif runMode == 3: 
-    print("not yet")
-    
-os.chdir(testDir)
+    # dataTable = pd.DataFrame(columns=dataList)
+    activeTestSeries = os.path.basename(os.getcwd())
+    activeFileName = newFileNameCheck(activeTestSeries)
 
+    with open(activeFileName, "w") as file:
+        while(True):
+            data = input("PROGRAM: you can enter data here: ")
+            file.write(data + "\n")  
+            print("data added.\n")
+            if data == "":
+                break
 
-# dataTable = pd.DataFrame(columns=dataList)
-activeTestSeries = os.path.basename(os.getcwd())
-activeFileName = newFileNameCheck(activeTestSeries)
-
-with open(activeFileName, "w") as file:
-    while(True):
-        data = input("PROGRAM: you can enter data here: ")
-        file.write(data + "\n")  
-        print("data added.\n")
-        if data == "":
-            break
-
-x= input("Press enter to end the program.\n")
+    x= input("Press enter to end the program.\n")
