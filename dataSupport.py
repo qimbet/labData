@@ -172,19 +172,30 @@ def setupDatabase(conn, cursor, databaseName, inputList, datatypeList):
     sqlString = f"CREATE TABLE IF NOT EXISTS {databaseName}" + bracketize(primaryKeyID + sqlColumns)
 
     cursor.execute(sqlString)
-
     conn.commit()
 
-def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
-    dataTable = pd.DataFrame(columns=dataList)
+def addtoDatabase(conn, cursor, databaseName, dataNameList, dataValueList):
+    qString = "?, "
+    qStringTotal = ""
+    for element in dataNameList:
+        qStringTotal = qStringTotal + qString
+    qStringTotal = qStringTotal[:-2]
+
+    cursor.execute(f"""
+        INSERT INTO {databaseName} {listforSQL(dataNameList)}
+        VALUES {qStringTotal}
+    """,(dataValueList))
+
+# def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
+#     dataTable = pd.DataFrame(columns=dataList)
 
 
-    #This is where I need to fix. It opens its own writing file: this should not be its responsibility
-    with open(newDataFileName+".txt", "w") as file:
-        # file.write(dataTable.to_string(index=False))
-        for element in dataList:
-            file.write(f"{element} \t")
-    return dataTable
+#     #This is where I need to fix. It opens its own writing file: this should not be its responsibility
+#     with open(newDataFileName+".txt", "w") as file:
+#         # file.write(dataTable.to_string(index=False))
+#         for element in dataList:
+#             file.write(f"{element} \t")
+#     return dataTable
 
 def userInputInteger(inputList): #Prompts the user for an integer input within an allowable range (len(inputList)). UI. Returns index of selected list item, starting at 0
     numRange = len(inputList)
@@ -231,6 +242,11 @@ def listToString(ls, betweener):
         strng = strng + str(element) + betweener
     strng = strng[:-len(betweener)] #removes the trailing betweener
     return strng
+
+def listforSQL(inputList):
+    output = listToString(inputList, ", ")
+    output = bracketize(x)
+    return output
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               MAIN FUNCTION
@@ -278,10 +294,8 @@ while(True):
         delimiter = " Data Repository"
         seriesName = seriesName[1].split(delimiter, 1)[0]  #returns, e.g. "Horse" from "Horse Data Repository"        
 
-        setupDatabase(conn, cursor, seriesName, unitsList)
+        setupDatabase(conn, cursor, seriesName, dataTypes, unitsList)
 
-        # dataFileName = newFileNameCheck(seriesName)
-        # newTable(dataList, dataFileName)
     elif runMode == 1: #Continue test series
         testDir = selectTestSeries()    #returns the directory of the test to be continued
         d("running established test series as selected")
