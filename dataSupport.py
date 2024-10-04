@@ -151,24 +151,28 @@ def setUnits(dataList):
     return datatypeList
 
 def setupDatabase(conn, cursor, databaseName, inputList, datatypeList):
-
-    sqlString = ""
     delimiter = ", "
-    
+    sqlColumns = []
     count = 0
+
     for element in datatypeList: 
-        blankString = ""
         if element == "":
-            type = "TEXT"          
+            type = "TEXT"
+            unit = "Qualitative"
         else: 
             type = "NUMERIC"
-        column = blankString.join()############################################3 WHAT SHOULD BE JOINED??
-        sqlString.append(column)
+            unit = dataTypeList[count]
+        
+        sqlFormatColumn = inputList[count] + type + delimiter + unit + "TEXT" + delimiter
+        sqlColumns.append(sqlFormatColumn)
+        count += 1
 
-    cursor.execute(f"""CREATE TABLE if NOT EXISTS {databaseName}(
-            key INT, 
-            convict BLOB, 
-            PRIMARY KEY(key))""")
+    listToString(sqlColumns[:-len(delimiter)], "")
+    primaryKeyID = "index INT PRIMARY KEY, "
+    sqlString = f"CREATE TABLE IF NOT EXISTS {databaseName}" + bracketize(primaryKeyID + sqlColumns)
+
+    cursor.execute(sqlString)
+
     conn.commit()
 
 def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
@@ -217,8 +221,16 @@ def printListTab(dataList):
         print(element, end ="\t")
     print("\n\n")
 
-def enterData():   
-    print("test line")
+def bracketize(inputString):
+    outputString = "(" + inputString + ")"
+    return outputString
+
+def listToString(ls, betweener):
+    strng = ""
+    for element in ls:
+        strng = strng + str(element) + betweener
+    strng = strng[:-len(betweener)] #removes the trailing betweener
+    return strng
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               MAIN FUNCTION
