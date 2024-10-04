@@ -1,20 +1,17 @@
-#Data entry support for the Vertebrate lab at UBC. 
-#This is framework to facilitate data entry, and offer a platform off of which future data pipelines can be built.
+#!/usr/bin/env python3
 
 #Jacob Mattie, August 21, 2024
-#For questions, contact: jacob@qimbet.com
+#j_mattie@live.ca
 
 import os
 import datetime as dt
 import pandas as pd
+import sqlite3 as sql
 
-DEBUG = False
+DEBUG = True
 
-programDirectory = os.path.dirname(os.path.realpath(__file__))  
-dataDirectory = os.path.join(programDirectory, "Data")
-if not os.path.exists(dataDirectory):
-    os.makedirs(dataDirectory)  
-    os.chdir(dataDirectory) 
+conn = sql.connect("labData.db")
+cursor = conn.cursor()
 
 #---------------------------------------------------------------------------------------------------------------
 #
@@ -22,14 +19,18 @@ if not os.path.exists(dataDirectory):
 #
 #---------------------------------------------------------------------------------------------------------------
 
-def d(input):
+def d(inVal): #Debug
     if(DEBUG == True):
-        print(input)
+        if inVal == "":
+            print("\n")
+        else:
+            print(inVal)
 
 def newTestSeries():    #Sets up a new directory for a test series. Creates a table through newTable(dataList). Returns a directory
     os.chdir(dataDirectory)
-    seriesName = input("Setting up a new test series. What species is being studied? ")
-    seriesDataRepo = seriesName.title() + " Data Repository"
+    seriesName = input("Setting up a new test series. Enter the name of the species being studied: \n\n")
+    seriesName = seriesName.title()
+    seriesDataRepo = seriesName + " Data Repository"
 
     seriesPath = os.path.join(os.getcwd(), seriesDataRepo)
     if not os.path.exists(seriesPath):
@@ -37,82 +38,88 @@ def newTestSeries():    #Sets up a new directory for a test series. Creates a ta
     os.chdir(seriesPath)  
 
     dataList = []
-    while(True):
-        print("Setting up the data formats. Please enter the names of each data type that you're collecting (e.g. 'body length', 'weight', etc.)\n")
-        newData = input("Enter a name for a data category and press enter: ")
-        while (True):
-            userChoice = input(f"{newData.title()} added! Enter 'edit' if you'd like to edit this entry, or enter your next data type. \nWhen you're done entering data types, leave the input blank and press 'Enter'.\n\nNew datatype: ")
-            if (userChoice.lower() == "edit"):
-                newData = input("Please enter the corrected data type name: ")
-                continue
-            dataList.append(newData.title()) 
-            newData = userChoice
-            if (newData == ""):
-                print("-")
-                break
-        print("Current data list is: \n")
-        for element in dataList:
-            print(element, end ="\t")
-        print("\n\n")
-        userChoice = input("Proceed? If you woud like to edit the list, enter 'edit'. Otherwise, press enter on a blank field to continue.\n")
-        if userChoice == "":
+    print(f"Setting up the data formats for: {seriesName}. \nPlease enter the names of each data type that you're collecting (e.g. 'colour', 'weight', etc.)\n\nDon't worry about units yet, we'll set those up later.\n")
+    newData = input("Enter a name for a data category and press enter: ")
+    newData = newData.title()
+
+    while (True):
+        userEntry = input(f"{newData} added! \nEnter 'edit' if you'd like to edit this entry, or enter your next data type. \nWhen you're done entering data types, leave the input blank and press 'Enter'.\n\nNew datatype: ")
+        if (userEntry.lower() == "edit"):
+            newData = input(f"Revising the entry: {newData.title()}.\nPlease enter the corrected data type name: ")
+            print("\n")
+            newData = newData.title()
+        elif (userEntry == ""):
+            dataList.append(newData) 
+            print("\n\n")
             break
-        elif userChoice.lower() == "edit":
-            print("What would you like to edit?")
-            choices = ["Remove data type", "Edit existing data type"]
-            listString(choices)
-            editChoice = userInputInteger(len(choices)) #Begin indexing at 1 for non-tech user intuitivity
-            if editChoice == 1:
-                print("Editing datatype: \nWhich datatype would you like to revise?\n")
-                listString(dataList)
-                dataListEdit = userInputInteger(len(dataList))-1
-                while(True):
-                    updatedValue = input("Enter your corrected datatype:\n")
-                    confirm = input(f"You entered: \'{updatedValue}\'. Press 'enter on a blank field to confirm, or enter your value again.")
-                    if confirm == "":
-                        dataList[dataListEdit] = updatedValue
-                        break
+        else: 
+            dataList.append(newData) 
+            newData = userEntry.title()
 
+    print("Current data list is: \n")
+    printListTab(dataList)
 
-    dataFileName = newFileNameCheck(seriesName)
-    newTable(dataList, dataFileName)
-    return seriesPath
+    userChoice = input("Proceed? If you woud like to edit the list, enter 'edit'. Otherwise, press enter on a blank field to continue.\n")
+    while(True):
+        if userChoice.lower() == "edit":
+            print("What would you like to edit?\n")
+            print("Current data types are: \n")
+            printListTab(dataList)
+            print("You may enter a task-associated numerical value, or press enter on a blank field to continue.\n")
+            choices = ["Remove data type", "Edit existing data type", "Add data type"]
+            editChoice = printChoose(choices)
+            
+            if editChoice == 0:
+                print("Removing datatype: \nWhich datatype would you like to remove?\n")
+                dataListRemove = printChoose(dataList)
+                del dataList[dataListRemove]
+                print(f"\nData list updated.\n Current data list is:\n")
+                printListTab(dataList)
+
+            elif editChoice == 1:
+                print("Editing datatype. Which datatype would you like to revise?\n")
+                dataListEdit = printChoose(dataList)
+                updatedValue = input("Enter your corrected datatype:\n")
+                dataList[dataListEdit] = updatedValue.title()
+                    
+            elif editChoice == 2:
+                newValue = input("What parameters would you like to add?\n")
+                newValue = newValue.title()
+                print(f"{newValue} added!")
+                dataList.append(newValue)
+
+            elif editChoice == "":
+                break              
+        elif userChoice == "":
+            break
+        else: 
+            userChoice = input("You did not enter a valid value!\n Press 'enter' on a blank field to continue to data input, or enter 'edit' to modify the test series parameters.\n")
+
+    return seriesPath, dataList
         
-def continueTestSeries():   #Lists file directories, allows selection. Returns a directory.
+def selectTestSeries():   #Lists file directories, allows selection. Returns a directory.
     os.chdir(dataDirectory)
     print("Select which test series you'd like to continue. \nThe current test series are:\n\n")
     fileList = os.listdir()
-    count = 1
 
+    d("\n\nfile list: ")
+    d(fileList)
+
+    directoryOptions = []
     for fileName in fileList:   #outputs available selection options from among list: "fileList"
         delimiter = " Data Repository"
         part = fileName.split(delimiter, 1)[0]
-        print(f"{count} - \t{part}")
-        count += 1
+        directoryOptions.append(part)
+        
 
-    userChoice = input("Enter the number representing the test series that you'd like to continue:\n")
-
-#### SUGGESTION: make this following bit an independent function; f("data format parameter") ? e.g. f("path to Break statement")
-
-    while(True): #input-checking
-        if(userChoice.isdigit() == True):
-            selected = int(userChoice)
-
-            if 1 <= selected <= len(fileList):
-                testSeries = fileList[selected-1] #-1 since lists start at index = 0
-                testSeriesPath = os.path.join(dataDirectory, testSeries)
-                print(f"Selected file: {testSeries}")
-                break
-            else:
-                userChoice = input(f"You entered {userChoice}. That's out of bounds! Please enter an appropriate integer value: \n")
-        else:
-            userChoice = input(f"You entered {userChoice}. That's not an integer! Please enter an appropriate integer value: \n")
-    
-    os.chdir(testSeriesPath)
-    d("Chosen working directory is: " + testSeriesPath)
+    d("printchoose fileList: \n\n")
+    userChoice = printChoose(directoryOptions)
+    testSeries = fileList[userChoice]
+    testSeriesPath = os.path.join(dataDirectory, testSeries)
+    print(f"Opened test series: {directoryOptions[userChoice]}")
+    # os.chdir(testSeriesPath)
+    d("Working directory is: " + testSeriesPath)
     return(testSeriesPath)
-
-#### End SUGGESTION
 
 def newFileNameCheck(seriesName):    #returns a new .txt filename for a series, date-marked. Increments a counter if a file already exists for today
     now = dt.datetime.now()
@@ -133,77 +140,224 @@ def newFileNameCheck(seriesName):    #returns a new .txt filename for a series, 
     
     return(newDataFileName+".txt")
 
-def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
-    dataTable = pd.DataFrame(columns=dataList)
+def setUnits(dataList):
+    datatypeList = []
+    for element in dataList:
+        type = input(f"Enter the measurement units (e.g. mm, kg, # of) for: \n{element.upper()}\nIf the data type is qualitative (e.g. colour), press enter on a blank field.\n\n")
+        if type == "":
+            datatypeList.append("")
+        else:
+            datatypeList.append(type)
+    return datatypeList
 
 
-    #This is where I need to fix. It opens its own writing file: this should not be its responsibility
-    with open(newDataFileName+".txt", "w") as file:
-        # file.write(dataTable.to_string(index=False))
-        for element in dataList:
-            file.write(f"{element} \t")
-    return dataTable
-
-def userInputInteger(numRange): #Prompts the user for an integer input within an allowable range (numRange). UI. Returns int
+def userInputInteger(inputList): #Prompts the user for an integer input within an allowable range (len(inputList)). UI. Returns index of selected list item, starting at 0
+    numRange = len(inputList)
     editChoice = input("Enter the numeric value corresponding to your selection: ")
     while(True):
         if(editChoice.isdigit() == True):
-            if (int(editChoice) > 0 & int(editChoice) <= numRange):
-                return int(editChoice)
+            editChoice = int(editChoice)
+            if (editChoice > 0 & editChoice <= numRange):
+                return (editChoice - 1)
             else:
                 editChoice = input("Your entered value is out of range! Please try again. \n")
                 continue
+        elif (editChoice == ""):
+            return ""
         else:
             editChoice = input("Your entered value is not an integer! Please try again. \n")
             continue
 
-def listString(list):   #UI. Lists options in a list with an associated index. Pairs with userInputInteger(len(list))
+def listString(list):   #UI. Lists options in a list with an associated index. Pairs with userInputInteger(list)
     num = 1
     for element in list:
-        print(f"{num} - {element}\n")
+        print(f"{num} - {element}")
         num += 1
+    print("\n")
     return
+
+def printChoose(inputList):
+    listString(inputList)
+    choice = userInputInteger(inputList)
+    return choice
+
+def printListTab(dataList):
+    for element in dataList:
+        print(element, end ="\t")
+    print("\n\n")
+
+def bracketize(inputString):
+    outputString = "(" + inputString + ")"
+    return outputString
+
+def listToString(ls, betweener):
+    strng = ""
+    for element in ls:
+        strng = strng + str(element) + betweener
+    strng = strng[:-len(betweener)] #removes the trailing betweener
+    return strng
+
+def listforSQL(inputList):
+    output = listToString(inputList, ", ")
+    output = bracketize(x)
+    return output
+
+def SQLsetupDatabase(conn, cursor, databaseName, inputList, datatypeList):
+    delimiter = ", "
+    sqlColumns = []
+    count = 0
+
+    for element in datatypeList: 
+        if element == "":
+            type = "TEXT"
+            unit = "Qualitative"
+        else: 
+            type = "NUMERIC"
+            unit = dataTypeList[count]
+        
+        sqlFormatColumn = inputList[count] + type + delimiter + unit + "TEXT" + delimiter
+        sqlColumns.append(sqlFormatColumn)
+        count += 1
+
+    listToString(sqlColumns[:-len(delimiter)], "")
+    primaryKeyID = "index INT PRIMARY KEY, "
+    sqlString = f"CREATE TABLE IF NOT EXISTS {databaseName}" + bracketize(primaryKeyID + sqlColumns)
+
+    cursor.execute(sqlString)
+    conn.commit()
+
+def SQLaddRow(conn, cursor, databaseName, dataNameList, dataValueList):
+    qString = "?, "
+    qStringTotal = ""
+    for element in dataNameList:
+        qStringTotal = qStringTotal + qString
+    qStringTotal = qStringTotal[:-2]
+
+    cursor.execute(f"""
+        INSERT INTO {databaseName} {listforSQL(dataNameList)}
+        VALUES {qStringTotal}
+    """,(dataValueList))
+    conn.commit()
+
+def SQLaddLoop(conn, cursor, databaseName): 
+    columns = SQLcolumnNames(conn, cursor, databaseName)
+    dataTypeNames = columns[0]
+    units = columns[1]
+    
+    while(True):
+        inValList = []
+        count = 0
+        specimenID = input("Enter the specimen ID: ")       ##############################SPECIMENID IS NOT REGISTERED IN THE SQL DATABASE. Should be prompted for at startup -- would you like to opt out of uniquely identifying specimens?
+
+        for element in dataTypeNames:
+            inVal = input(f"{databaseName} ({specimenID}): Please enter the value for {element} ({units[count]})\n")
+            inValList.append(inVal)
+
+        SQLaddRow(conn, cursor, databaseName, dataTypeNames, inValList)
+        print("Specimen added to database!")
+
+
+def SQLcolumnNames(conn, cursor, databaseName):    #returns a tuple; (dataTypeNames, units)
+    count = 1
+    dataTypes = []
+    units = []
+
+    cursor.execute(f"SELECT * FROM {databaseName} LIMIT 1")
+    colNames = [description[0] for description in cursor.description]
+
+    for element in colNames: 
+        if count == 1:
+            continue
+        elif count%2 == 0:
+            dataTypes.append(element)
+        else:
+            units.append(element)
+        count += 1
+    return dataTypes, units
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               MAIN FUNCTION
 #
 #---------------------------------------------------------------------------------------------------------------
 
-count = 1
-choiceList = ["Set up a new test series", "Continue a test series"] ###################################################    STARTUP USER CHOICES
+if True: #Directory setup
+    programDirectory = os.path.dirname(os.path.realpath(__file__))  
+    directoryList = ["Data", "Graphs"]
 
-print("Welcome!\nWhat would you like to do? Enter a numeric value to select an option.\n\n")
+    directoryPathList = []
+    for element in directoryList:
+        dir = os.path.join(programDirectory, element)
+        directoryPathList.append(dir)
+        if not os.path.exists(dir):
+            print(f"\nNo {element} directory found!\nSetting up {element} directory in {programDirectory}\n")
+            os.makedirs(dir)  
+    
+    dataDirectory = directoryPathList[0]
+    graphsDirectory = directoryPathList[1]
 
-for element in choiceList:
-    print(f"{count} - \t{element}")
-    count += 1
-userChoice = input("\n")
+os.chdir(dataDirectory) 
+
+programRunList = ["Start a new test series", "Continue an existing test series", "Export full data series", "Analyze Data", "About"]
+exportOptions = ["Export SQL Database", "Export .csv", "Export .pdf"]
+analyzeOptions = ["Graph data", "Statistical trends"]
+aboutOptions = ["What is this progam about?", "Terms of use", "Source code", "Credits"]
+
+
 
 while(True):
-    if (userChoice.isdigit() == True):
-        choice = int(userChoice)
-        if choice == 1:
-            testDir = newTestSeries() #returns the directory of the new test series
-            break
-        elif choice == 2:
-            testDir = continueTestSeries()    #returns the directory of the test to be continued
-            break
-    else:
-        userChoice = input("That's not a valid choice. Please enter another value.\n")
+    print("What would you like to do? Enter a numeric value to select an option, or enter a blank field to quit the program.\n\n")
+    runMode = printChoose(programRunList)
 
-os.chdir(testDir)
-# dataTable = pd.DataFrame(columns=dataList)
-activeTestSeries = os.path.basename(os.getcwd())
-activeFileName = newFileNameCheck(activeTestSeries)
+    if runMode == "":
+        exit()
+    elif runMode == 0:    #New Test Series
+        parameters = newTestSeries() #returns tuple: (seriesPath, dataList)
+        testDir = parameters[0]
+        dataTypes = parameters[1]
+
+        unitsList = setUnits(dataTypes) #empty string for qualitative data, numeric data contains a unit type
+
+        seriesName = os.path.split(testDir)
+
+        delimiter = " Data Repository"
+        seriesName = seriesName[1].split(delimiter, 1)[0]  #returns, e.g. "Horse" from "Horse Data Repository"        
+
+        SQLsetupDatabase(conn, cursor, seriesName, dataTypes, unitsList)
+
+    elif runMode == 1: #Continue test series
+        testDir = selectTestSeries()    #returns the directory of the test to be continued
+        d("running established test series as selected")
+    elif runMode == 2: #Export Data
+        print("not yet")
+    elif runMode == 3: #Analyze Data
+        print("not yet")
+    elif runMode == 4: #Source code, credits
+        about = printChoose(aboutOptions)
+        if about == 0:
+            print("Why dataSupport? What's it for, how to use, how to make the most of it")
+        elif about == 1:
+            print("use responsibly. Be kind.")
+        elif about == 2:
+            print("Source code. Open source, evidently.")
+        elif about == 3: 
+            print("Credits. Yours truly, Jacob Mattie, 2024. \nj_mattie@live.ca")
+        
+        x = input("Press enter to continue")
+        continue
+        
+    os.chdir(testDir)
 
 
+    # dataTable = pd.DataFrame(columns=dataList)
+    activeTestSeries = os.path.basename(os.getcwd())
+    activeFileName = newFileNameCheck(activeTestSeries)
 
-with open(activeFileName, "w") as file:
-    while(True):
-        data = input("you can enter data here: ")
-        file.write(data + "\n")  
-        print("data added.\n")
-        if data == "":
-            break
+    with open(activeFileName, "w") as file:
+        while(True):
+            data = input("PROGRAM: you can enter data here: ")
+            file.write(data + "\n")  
+            print("data added.\n")
+            if data == "":
+                break
 
-x= input("Press enter to end the program.\n")
+    x= input("Press enter to end the program.\n")
