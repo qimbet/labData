@@ -150,52 +150,6 @@ def setUnits(dataList):
             datatypeList.append(type)
     return datatypeList
 
-def setupDatabase(conn, cursor, databaseName, inputList, datatypeList):
-    delimiter = ", "
-    sqlColumns = []
-    count = 0
-
-    for element in datatypeList: 
-        if element == "":
-            type = "TEXT"
-            unit = "Qualitative"
-        else: 
-            type = "NUMERIC"
-            unit = dataTypeList[count]
-        
-        sqlFormatColumn = inputList[count] + type + delimiter + unit + "TEXT" + delimiter
-        sqlColumns.append(sqlFormatColumn)
-        count += 1
-
-    listToString(sqlColumns[:-len(delimiter)], "")
-    primaryKeyID = "index INT PRIMARY KEY, "
-    sqlString = f"CREATE TABLE IF NOT EXISTS {databaseName}" + bracketize(primaryKeyID + sqlColumns)
-
-    cursor.execute(sqlString)
-    conn.commit()
-
-def addtoDatabase(conn, cursor, databaseName, dataNameList, dataValueList):
-    qString = "?, "
-    qStringTotal = ""
-    for element in dataNameList:
-        qStringTotal = qStringTotal + qString
-    qStringTotal = qStringTotal[:-2]
-
-    cursor.execute(f"""
-        INSERT INTO {databaseName} {listforSQL(dataNameList)}
-        VALUES {qStringTotal}
-    """,(dataValueList))
-
-# def newTable(dataList, newDataFileName):     #Initializes a text file with a first line of \t delimited column names, given by dataLists. Returns(?) a pd.Dataframe object
-#     dataTable = pd.DataFrame(columns=dataList)
-
-
-#     #This is where I need to fix. It opens its own writing file: this should not be its responsibility
-#     with open(newDataFileName+".txt", "w") as file:
-#         # file.write(dataTable.to_string(index=False))
-#         for element in dataList:
-#             file.write(f"{element} \t")
-#     return dataTable
 
 def userInputInteger(inputList): #Prompts the user for an integer input within an allowable range (len(inputList)). UI. Returns index of selected list item, starting at 0
     numRange = len(inputList)
@@ -247,6 +201,79 @@ def listforSQL(inputList):
     output = listToString(inputList, ", ")
     output = bracketize(x)
     return output
+
+def SQLsetupDatabase(conn, cursor, databaseName, inputList, datatypeList):
+    delimiter = ", "
+    sqlColumns = []
+    count = 0
+
+    for element in datatypeList: 
+        if element == "":
+            type = "TEXT"
+            unit = "Qualitative"
+        else: 
+            type = "NUMERIC"
+            unit = dataTypeList[count]
+        
+        sqlFormatColumn = inputList[count] + type + delimiter + unit + "TEXT" + delimiter
+        sqlColumns.append(sqlFormatColumn)
+        count += 1
+
+    listToString(sqlColumns[:-len(delimiter)], "")
+    primaryKeyID = "index INT PRIMARY KEY, "
+    sqlString = f"CREATE TABLE IF NOT EXISTS {databaseName}" + bracketize(primaryKeyID + sqlColumns)
+
+    cursor.execute(sqlString)
+    conn.commit()
+
+def SQLaddRow(conn, cursor, databaseName, dataNameList, dataValueList):
+    qString = "?, "
+    qStringTotal = ""
+    for element in dataNameList:
+        qStringTotal = qStringTotal + qString
+    qStringTotal = qStringTotal[:-2]
+
+    cursor.execute(f"""
+        INSERT INTO {databaseName} {listforSQL(dataNameList)}
+        VALUES {qStringTotal}
+    """,(dataValueList))
+    conn.commit()
+
+def SQLaddLoop(conn, cursor, databaseName): 
+    columns = SQLcolumnNames(conn, cursor, databaseName)
+    dataTypeNames = columns[0]
+    units = columns[1]
+    
+    while(True):
+        inValList = []
+        count = 0
+        specimenID = input("Enter the specimen ID: ")       ##############################SPECIMENID IS NOT REGISTERED IN THE SQL DATABASE. Should be prompted for at startup -- would you like to opt out of uniquely identifying specimens?
+
+        for element in dataTypeNames:
+            inVal = input(f"{databaseName} ({specimenID}): Please enter the value for {element} ({units[count]})\n")
+            inValList.append(inVal)
+
+        SQLaddRow(conn, cursor, databaseName, dataTypeNames, inValList)
+        print("Specimen added to database!")
+
+
+def SQLcolumnNames(conn, cursor, databaseName):    #returns a tuple; (dataTypeNames, units)
+    count = 1
+    dataTypes = []
+    units = []
+
+    cursor.execute(f"SELECT * FROM {databaseName} LIMIT 1")
+    colNames = [description[0] for description in cursor.description]
+
+    for element in colNames: 
+        if count == 1:
+            continue
+        elif count%2 == 0:
+            dataTypes.append(element)
+        else:
+            units.append(element)
+        count += 1
+    return dataTypes, units
 #---------------------------------------------------------------------------------------------------------------
 #
 #                               MAIN FUNCTION
@@ -270,9 +297,10 @@ if True: #Directory setup
 
 os.chdir(dataDirectory) 
 
-programRunList = ["Start a new test series", "Continue an existing test series", "Export full data series", "Analyze Data", "Source Code"]
+programRunList = ["Start a new test series", "Continue an existing test series", "Export full data series", "Analyze Data", "About"]
 exportOptions = ["Export SQL Database", "Export .csv", "Export .pdf"]
 analyzeOptions = ["Graph data", "Statistical trends"]
+aboutOptions = ["What is this progam about?", "Terms of use", "Source code", "Credits"]
 
 
 
@@ -294,7 +322,7 @@ while(True):
         delimiter = " Data Repository"
         seriesName = seriesName[1].split(delimiter, 1)[0]  #returns, e.g. "Horse" from "Horse Data Repository"        
 
-        setupDatabase(conn, cursor, seriesName, dataTypes, unitsList)
+        SQLsetupDatabase(conn, cursor, seriesName, dataTypes, unitsList)
 
     elif runMode == 1: #Continue test series
         testDir = selectTestSeries()    #returns the directory of the test to be continued
@@ -304,7 +332,16 @@ while(True):
     elif runMode == 3: #Analyze Data
         print("not yet")
     elif runMode == 4: #Source code, credits
-        print("Code developed by Jacob Mattie, 2024.\nj_mattie@live.ca\n\nSouce code available at: \n\nhttps://github.com/qimbet/labData\n\n")
+        about = printChoose(aboutOptions)
+        if about == 0:
+            print("Why dataSupport? What's it for, how to use, how to make the most of it")
+        elif about == 1:
+            print("use responsibly. Be kind.")
+        elif about == 2:
+            print("Source code. Open source, evidently.")
+        elif about == 3: 
+            print("Credits. Yours truly, Jacob Mattie, 2024. \nj_mattie@live.ca")
+        
         x = input("Press enter to continue")
         continue
         
